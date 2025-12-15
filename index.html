@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#fff0f5" />
     
-    <!-- iOS Specific Settings -->
+    <!-- iOS Specific Settings (The "Silver Bullet" for iOS PWA) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MoeCards" />
     
-    <!-- iOS Icon (Important for avoiding some 404 quirks in older iOS versions) -->
+    <!-- iOS Icon -->
     <link rel="apple-touch-icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f431.png" />
 
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
     
     <title>MoeFlashcards</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -52,11 +52,11 @@
         background-color: #fff0f5;
         color: #4a4a4a;
         -webkit-font-smoothing: antialiased;
-        overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
+        overscroll-behavior-y: none; /* Prevent pull-to-refresh */
         
         /* iOS App-like Experience Optimizations */
-        min-height: 100dvh; /* Use dynamic viewport height */
-        -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+        min-height: 100dvh; 
+        -webkit-tap-highlight-color: transparent; 
       }
       /* Hide scrollbar for clean UI */
       .no-scrollbar::-webkit-scrollbar {
@@ -111,12 +111,17 @@
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
-      // Register SW immediately with EXPLICIT scope
+      // EMERGENCY FIX: Unregister existing Service Workers to stop the 404 loop.
+      // Since we are moving to a manifest-only approach for iOS compatibility,
+      // we need to clear the old cache interceptor.
       if ('serviceWorker' in navigator) {
-        // Adding scope: './' is crucial for iOS to understand where the SW has authority
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
-          .then(reg => console.log('SW Registered!', reg))
-          .catch(err => console.log('SW Failed:', err));
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister().then(function(boolean) {
+               console.log('Service Worker unregistered: ', boolean);
+            });
+          }
+        });
       }
     </script>
   </body>
