@@ -1,0 +1,7 @@
+{
+  "name": "MoeFlashcards",
+  "description": "A cute, healing flashcard companion app powered by AI. Create cards, draw, or import words with AI translations.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
