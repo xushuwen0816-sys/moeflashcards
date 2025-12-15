@@ -1,11 +1,12 @@
 {
   "name": "MoeFlashcards",
   "short_name": "MoeCards",
-  "start_url": "index.html",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#fff0f5",
   "theme_color": "#fff0f5",
   "description": "A cute, healing flashcard companion.",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3330/3330314.png",

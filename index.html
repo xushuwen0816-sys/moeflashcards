@@ -109,10 +109,11 @@
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
+      // Register SW immediately to ensure caching happens before Add to Home Screen
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed', err));
-        });
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW Registered!', reg))
+          .catch(err => console.log('SW Failed:', err));
       }
     </script>
   </body>
