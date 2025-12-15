@@ -1,7 +1,8 @@
 {
   "name": "MoeFlashcards",
   "short_name": "MoeCards",
-  "start_url": "./index.html",
+  "start_url": "index.html",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#fff0f5",
   "theme_color": "#fff0f5",
