@@ -34,6 +34,7 @@ export enum ViewState {
   WELCOME = 'WELCOME',
   HOME = 'HOME',
   CREATE = 'CREATE',
+  CREATE_DRAW = 'CREATE_DRAW',
   IMPORT = 'IMPORT',
   REVIEW = 'REVIEW',
   SETTINGS = 'SETTINGS',

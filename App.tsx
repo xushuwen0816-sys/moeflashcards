@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings as SettingsIcon, 
@@ -100,10 +101,10 @@ const getGreeting = (name: string, dueCount: number) => {
   const hour = new Date().getHours();
   let timeGreeting = '';
   if (hour < 5) timeGreeting = '这么晚了还在努力吗？';
-  else if (hour < 11) timeGreeting = '早安！今天也是充满希望的一天～';
-  else if (hour < 14) timeGreeting = '午安，记得吃午饭哦！';
-  else if (hour < 19) timeGreeting = '下午好！来复习几个单词提提神吧？';
-  else timeGreeting = '晚上好，今天的任务完成了吗？';
+  else if (hour < 11) timeGreeting = '早安！';
+  else if (hour < 14) timeGreeting = '午安，';
+  else if (hour < 19) timeGreeting = '下午好！';
+  else timeGreeting = '晚上好，';
 
   if (dueCount > 10) return `${timeGreeting} 我们积压了 ${dueCount} 个卡片，一起加油消灭它们吧！`;
   if (dueCount > 0) return `${timeGreeting} 只有 ${dueCount} 个卡片需要复习，很快就能搞定！`;
@@ -460,12 +461,12 @@ const HomeScreen: React.FC<{
                 </div>
                 <div className="text-left">
                   <div className="font-bold text-moe-text text-lg">文本卡片</div>
-                  <div className="text-xs text-gray-400">经典的文字和定义</div>
+                  <div className="text-xs text-gray-400">输入文字和定义</div>
                 </div>
               </button>
 
               <button 
-                onClick={() => { setShowCreateMenu(false); onNavigate(ViewState.CREATE + '_DRAW'); }}
+                onClick={() => { setShowCreateMenu(false); onNavigate(ViewState.CREATE_DRAW); }}
                 className="w-full bg-moe-50 hover:bg-moe-100 p-4 rounded-3xl flex items-center gap-4 transition-colors group"
               >
                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-moe-primary shadow-sm group-hover:scale-110 transition-transform">
@@ -473,7 +474,7 @@ const HomeScreen: React.FC<{
                 </div>
                 <div className="text-left">
                   <div className="font-bold text-moe-text text-lg">手写卡片</div>
-                  <div className="text-xs text-gray-400">自由涂鸦和绘图</div>
+                  <div className="text-xs text-gray-400">自由写字和涂鸦</div>
                 </div>
               </button>
 
@@ -580,19 +581,22 @@ const FolderDetailScreen: React.FC<{
         link.download = `moe_cards_${folder.name}.txt`;
         link.click();
       } else if (format === 'pdf') {
-        // Use window.print() approach
+        // Use window.print() approach with improved 2-column layout
         const printWindow = window.open('', '_blank');
         if (printWindow) {
           const rowsHtml = data.map(d => `
             <div class="card">
-              <div class="word-row">
-                <span class="word">${d.word}</span>
-                <span class="phonetic">${d.phonetic}</span>
+              <div class="col-left">
+                <div class="word">${d.word}</div>
+                ${d.phonetic ? `<div class="phonetic">${d.phonetic}</div>` : ''}
               </div>
-              <div class="meaning">${d.meaning}</div>
-              <div class="example">
-                <div class="en">${d.example}</div>
-                <div class="cn">${d.translation}</div>
+              <div class="col-right">
+                <div class="meaning">${d.meaning}</div>
+                ${d.example ? `
+                <div class="example">
+                  <div class="en">${d.example}</div>
+                  <div class="cn">${d.translation}</div>
+                </div>` : ''}
               </div>
             </div>
           `).join('');
@@ -603,16 +607,45 @@ const FolderDetailScreen: React.FC<{
                 <title>Export - ${folder.name}</title>
                 <style>
                   @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Noto+Sans+SC:wght@400;700&display=swap');
-                  body { font-family: 'Quicksand', 'Noto Sans SC', sans-serif; padding: 20px; color: #4a4a4a; }
-                  h1 { text-align: center; color: #ff9a9e; margin-bottom: 30px; }
-                  .card { border: 1px solid #ffe4e1; padding: 15px; border-radius: 12px; margin-bottom: 15px; page-break-inside: avoid; background: #fffafb; }
-                  .word-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
-                  .word { font-size: 1.5em; font-weight: bold; color: #ff9a9e; }
-                  .phonetic { font-family: monospace; color: #888; font-size: 0.9em; }
-                  .meaning { font-weight: bold; margin-bottom: 8px; }
-                  .example { font-size: 0.9em; color: #666; background: #fff; padding: 8px; border-radius: 8px; }
-                  .example .cn { color: #999; font-size: 0.85em; margin-top: 2px; }
-                  @media print { .no-print { display: none; } body { background: white; } }
+                  body { font-family: 'Quicksand', 'Noto Sans SC', sans-serif; padding: 40px; color: #4a4a4a; background: white; }
+                  h1 { text-align: center; color: #ff9a9e; margin-bottom: 40px; font-size: 24px; }
+                  .card { 
+                    display: flex; 
+                    border: 2px solid #ffe4e1; 
+                    border-radius: 20px; 
+                    margin-bottom: 20px; 
+                    page-break-inside: avoid; 
+                    overflow: hidden;
+                    background: #fff;
+                  }
+                  .col-left {
+                    flex: 1;
+                    padding: 24px;
+                    background: #fff9fc;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    text-align: center;
+                    border-right: 2px solid #ffe4e1;
+                  }
+                  .col-right {
+                    flex: 1;
+                    padding: 24px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                  }
+                  .word { font-size: 24px; font-weight: bold; color: #ff9a9e; margin-bottom: 8px; line-height: 1.2; }
+                  .phonetic { font-family: 'Quicksand', monospace; color: #888; font-size: 14px; background: rgba(255, 228, 225, 0.5); padding: 4px 12px; border-radius: 12px; }
+                  .meaning { font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #4a4a4a; line-height: 1.4; }
+                  .example { font-size: 14px; color: #666; background: #fafafa; padding: 12px; border-radius: 12px; border-left: 3px solid #ffb7b2; }
+                  .example .en { margin-bottom: 4px; line-height: 1.4; }
+                  .example .cn { color: #999; font-size: 13px; }
+                  @media print { 
+                    body { -webkit-print-color-adjust: exact; padding: 0; } 
+                    .card { break-inside: avoid; }
+                  }
                 </style>
               </head>
               <body>
@@ -938,7 +971,7 @@ const ImportScreen: React.FC<{
       <div className="p-6 border-t border-gray-100">
         {!previewCards.length ? (
           <button onClick={handleAIProcess} disabled={isLoading || !inputText} className="w-full bg-moe-primary text-white font-bold py-4 rounded-3xl hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-95">
-            {isLoading ? <span className="animate-pulse">思考中...</span> : <><Sparkles size={20} /> 施展魔法</>}
+            {isLoading ? <span className="animate-pulse">思考中...</span> : <><Sparkles size={20} /> 生成闪卡</>}
           </button>
         ) : (
            <div className="flex gap-4">
@@ -1310,8 +1343,8 @@ const App: React.FC = () => {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />;
   }
 
-  const isCreateMode = view === ViewState.CREATE || view === ViewState.CREATE + '_DRAW';
-  const createInitialMode = view === ViewState.CREATE + '_DRAW' ? 'image' : 'text';
+  const isCreateMode = view === ViewState.CREATE || view === ViewState.CREATE_DRAW;
+  const createInitialMode = view === ViewState.CREATE_DRAW ? 'image' : 'text';
 
   // Filter cards: Total in folder vs Due in folder
   const folderCards = cards.filter(c => c.folderId === currentFolderId);
