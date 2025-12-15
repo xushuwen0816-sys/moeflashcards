@@ -1,59 +1,54 @@
-const CACHE_NAME = 'moe-cards-v2';
-const URLS_TO_CACHE = [
+const CACHE_NAME = 'moe-cards-v3-fix';
+const ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap'
 ];
 
-// Install: Cache core files immediately
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // Force activation
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(URLS_TO_CACHE).catch(err => {
-        console.error('Cache failed:', err);
-      });
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
 });
 
-// Activate: Clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches.keys().then((keys) => Promise.all(
+      keys.map((k) => k !== CACHE_NAME && caches.delete(k))
+    )).then(() => self.clients.claim())
   );
 });
 
-// Fetch: Network first, then fallback to cache (The 404 Killer)
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests (like CDNs) for now to keep it simple, or let them pass through
-  if (!event.request.url.startsWith(self.location.origin)) {
+  // 1. Navigation requests (HTML): Network First -> Check Status -> Fallback to Cache
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // CRITICAL FIX: If server returns 404 or error, throw to trigger catch block
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response;
+        })
+        .catch(() => {
+          // If network fails OR returns 404, force return the cached index.html
+          // This handles the iOS "Add to Home Screen" path issues
+          return caches.match('./index.html').then(resp => {
+             return resp || caches.match('./'); // Fallback for root mapping
+          });
+        })
+    );
     return;
   }
 
+  // 2. Asset requests: Cache First, then Network
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // If network works, return it and optionally cache it
-        return response;
-      })
-      .catch(() => {
-        // If network fails (or 404s in some contexts), try cache
-        // Specifically for navigation requests (opening the app), return index.html
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html').then(response => {
-            return response || caches.match('./');
-          });
-        }
-        return caches.match(event.request);
-      })
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request);
+    })
   );
 });
