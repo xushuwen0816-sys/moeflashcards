@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moe-cards-v3-fix';
+const CACHE_NAME = 'moe-cards-v4-no-icon';
 const ASSETS = [
   './',
   './index.html',
@@ -28,7 +28,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // CRITICAL FIX: If server returns 404 or error, throw to trigger catch block
           if (!response.ok) {
             throw new Error('Network response was not ok');
           }
@@ -36,9 +35,8 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           // If network fails OR returns 404, force return the cached index.html
-          // This handles the iOS "Add to Home Screen" path issues
           return caches.match('./index.html').then(resp => {
-             return resp || caches.match('./'); // Fallback for root mapping
+             return resp || caches.match('./');
           });
         })
     );

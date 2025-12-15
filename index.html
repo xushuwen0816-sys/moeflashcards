@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#fff0f5" />
     
-    <!-- iOS Specific Settings (Crucial for Standalone Mode) -->
+    <!-- iOS Specific Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MoeCards" />
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3330/3330314.png" />
+    <!-- Icon removed for debugging -->
     
     <title>MoeFlashcards</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -109,7 +109,7 @@
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
-      // Register SW immediately to ensure caching happens before Add to Home Screen
+      // Register SW immediately
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
           .then(reg => console.log('SW Registered!', reg))
