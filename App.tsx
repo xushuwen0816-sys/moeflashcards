@@ -28,7 +28,8 @@ import {
   X,
   FileText,
   FileSpreadsheet,
-  Printer
+  Printer,
+  Heart
 } from 'lucide-react';
 import { Card, Settings, ViewState, Folder } from './types';
 import { generateFlashcardsFromList } from './services/geminiService';
@@ -95,6 +96,20 @@ const stripHTML = (html: string) => {
   return tmp.textContent || tmp.innerText || "";
 };
 
+const getGreeting = (name: string, dueCount: number) => {
+  const hour = new Date().getHours();
+  let timeGreeting = '';
+  if (hour < 5) timeGreeting = '这么晚了还在努力吗？';
+  else if (hour < 11) timeGreeting = '早安！今天也是充满希望的一天～';
+  else if (hour < 14) timeGreeting = '午安，记得吃午饭哦！';
+  else if (hour < 19) timeGreeting = '下午好！来复习几个单词提提神吧？';
+  else timeGreeting = '晚上好，今天的任务完成了吗？';
+
+  if (dueCount > 10) return `${timeGreeting} 我们积压了 ${dueCount} 个卡片，一起加油消灭它们吧！`;
+  if (dueCount > 0) return `${timeGreeting} 只有 ${dueCount} 个卡片需要复习，很快就能搞定！`;
+  return `${timeGreeting} 现在没有复习任务，去休息一下或者制作新卡片吧？`;
+};
+
 // --- Sub-components for Screens ---
 
 const WelcomeScreen: React.FC<{ onComplete: (settings: Settings) => void }> = ({ onComplete }) => {
@@ -103,39 +118,42 @@ const WelcomeScreen: React.FC<{ onComplete: (settings: Settings) => void }> = ({
   const [provider, setProvider] = useState<'google' | 'siliconflow'>('google');
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-moe-50 text-center">
-      <div className="w-full max-w-md bg-white p-8 rounded-4xl shadow-xl shadow-moe-100 mb-8">
-        <div className="w-24 h-24 bg-moe-100 rounded-full mx-auto mb-6 flex items-center justify-center text-4xl">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-moe-50 text-center relative overflow-hidden">
+      {/* Decorative blobs */}
+      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-moe-200 rounded-full blur-3xl opacity-20"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-moe-500 rounded-full blur-3xl opacity-20"></div>
+
+      <div className="w-full max-w-md bg-white/80 backdrop-blur-md p-8 rounded-5xl shadow-xl shadow-moe-100 mb-8 border border-white z-10">
+        <div className="w-24 h-24 bg-moe-100 rounded-full mx-auto mb-6 flex items-center justify-center text-4xl shadow-inner ring-4 ring-white">
           🐱
         </div>
         <h1 className="text-2xl font-bold text-moe-text mb-2">欢迎回家!</h1>
-        <p className="text-gray-400 mb-8 text-sm">让我们一起搭建你的温馨学习角落吧。</p>
+        <p className="text-gray-400 mb-8 text-sm">我是你的学习伴侣，让我们一起搭建温馨的学习角落吧。</p>
 
         <div className="space-y-4 text-left">
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 ml-2">你的名字</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 ml-2">怎么称呼你呢？</label>
             <input 
               type="text" 
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="例如：Momo"
-              className="w-full bg-moe-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-moe-200 outline-none text-moe-text placeholder-gray-300"
+              className="w-full bg-moe-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-moe-200 outline-none text-moe-text placeholder-gray-300 transition-all"
             />
           </div>
 
           <div>
-             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 ml-2">AI 提供商</label>
+             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 ml-2">AI 能量来源</label>
              <div className="flex gap-2">
                <button 
                 onClick={() => setProvider('google')}
-                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-all ${provider === 'google' ? 'bg-moe-primary text-white shadow-md' : 'bg-moe-50 text-gray-400'}`}
+                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-all ${provider === 'google' ? 'bg-moe-primary text-white shadow-md transform scale-105' : 'bg-moe-50 text-gray-400 hover:bg-moe-100'}`}
                >
                  Google Gemini
                </button>
-               {/* SiliconFlow placeholder */}
                <button 
                 onClick={() => setProvider('siliconflow')}
-                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-all ${provider === 'siliconflow' ? 'bg-moe-primary text-white shadow-md' : 'bg-moe-50 text-gray-400'}`}
+                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-all ${provider === 'siliconflow' ? 'bg-moe-primary text-white shadow-md transform scale-105' : 'bg-moe-50 text-gray-400 hover:bg-moe-100'}`}
                >
                  硅基流动
                </button>
@@ -149,15 +167,15 @@ const WelcomeScreen: React.FC<{ onComplete: (settings: Settings) => void }> = ({
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="在此输入你的 Key..."
-              className="w-full bg-moe-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-moe-200 outline-none text-moe-text placeholder-gray-300"
+              className="w-full bg-moe-50 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-moe-200 outline-none text-moe-text placeholder-gray-300 transition-all"
             />
             <a 
               href={provider === 'google' ? "https://aistudio.google.com/app/apikey" : "https://siliconflow.cn"} 
               target="_blank" 
               rel="noreferrer"
-              className="block text-xs text-moe-primary mt-2 ml-2 hover:underline"
+              className="block text-xs text-moe-primary mt-2 ml-2 hover:underline flex items-center gap-1"
             >
-              点击获取 {provider === 'google' ? 'Gemini' : 'SiliconFlow'} Key →
+              <Key size={12}/> 点击获取 {provider === 'google' ? 'Gemini' : 'SiliconFlow'} Key →
             </a>
           </div>
         </div>
@@ -165,7 +183,7 @@ const WelcomeScreen: React.FC<{ onComplete: (settings: Settings) => void }> = ({
         <button 
           disabled={!apiKey || !name}
           onClick={() => onComplete({ apiKey, provider, userName: name })}
-          className="w-full mt-8 bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="w-full mt-8 bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           开始旅程
         </button>
@@ -262,7 +280,7 @@ const SettingsScreen: React.FC<{
       <div className="p-6 border-t border-gray-100">
         <button 
           onClick={handleSave}
-          className="w-full bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          className="w-full bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95"
         >
           {isSaved ? <span className="flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2"><ThumbsUp size={20}/> 已保存</span> : "保存修改"}
         </button>
@@ -285,7 +303,7 @@ const HomeScreen: React.FC<{
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-
+  
   const handleCreateFolder = () => {
     if (newFolderName.trim()) {
       onCreateFolder(newFolderName.trim());
@@ -298,27 +316,26 @@ const HomeScreen: React.FC<{
 
   return (
     <div className="h-full overflow-y-auto no-scrollbar pb-6">
-      {/* 
-        Tablet Layout Optimization: 
-        1. Added 'md:min-h-[80vh]' to ensure height allows centering.
-        2. Added 'md:flex md:flex-col md:justify-center' to vertically center the dashboard on large screens.
-      */}
       <div className="p-6 pt-12 md:p-12 md:max-w-7xl md:mx-auto md:min-h-[90vh] md:flex md:flex-col md:justify-center">
         
         {/* Header - Always visible */}
         <div className="flex justify-between items-start mb-6">
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center shadow-sm text-2xl md:text-3xl">
-                🐣
+           {/* Mascot Dialogue Area */}
+          <div className="flex items-start gap-4 flex-1">
+             <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-md text-3xl flex-shrink-0 border-2 border-moe-50 z-10 relative">
+                🐱
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 border-2 border-white rounded-full"></div>
              </div>
-             <div>
-                <h1 className="text-2xl md:text-4xl font-bold text-moe-text">嗨, {user}!</h1>
-                <p className="text-moe-primary font-medium text-sm md:text-lg mt-1">今天复习哪个文件夹呢？</p>
+             <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-moe-50 relative -mt-2 animate-in fade-in slide-in-from-left-2 duration-500">
+                <h1 className="text-lg font-bold text-moe-text mb-1">嗨, {user}!</h1>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                   {getGreeting(user, dueCount)}
+                </p>
              </div>
           </div>
           <button 
             onClick={onOpenSettings} 
-            className="p-3 bg-white rounded-2xl shadow-sm text-gray-400 hover:text-moe-primary transition-colors"
+            className="p-3 bg-white rounded-2xl shadow-sm text-gray-400 hover:text-moe-primary transition-colors hover:rotate-90 duration-300"
           >
             <SettingsIcon size={24} />
           </button>
@@ -336,7 +353,7 @@ const HomeScreen: React.FC<{
                   onClick={() => onSwitchFolder(folder.id)}
                   className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
                     currentFolderId === folder.id 
-                      ? 'bg-moe-text text-white shadow-md' 
+                      ? 'bg-moe-text text-white shadow-md transform -translate-y-0.5' 
                       : 'bg-white text-gray-400 hover:bg-gray-50'
                   }`}
                 >
@@ -354,22 +371,29 @@ const HomeScreen: React.FC<{
             {/* Stats Card */}
             <div 
               onClick={() => onNavigate(ViewState.FOLDER_DETAIL)}
-              className="bg-white p-6 md:p-8 rounded-3xl shadow-lg shadow-moe-100 relative overflow-hidden group cursor-pointer active:scale-95 transition-transform flex-1 flex flex-col justify-end"
+              className="bg-white p-6 md:p-8 rounded-4xl shadow-xl shadow-moe-100/50 relative overflow-hidden group cursor-pointer active:scale-95 transition-all flex-1 flex flex-col justify-end border border-white hover:border-moe-100"
             >
-              <div className="absolute -right-4 -top-4 w-24 h-24 bg-moe-50 rounded-full opacity-50 group-hover:scale-110 transition-transform"></div>
+              <div className="absolute -right-4 -top-4 w-32 h-32 bg-moe-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+              <div className="absolute right-10 top-10 text-moe-100 opacity-20 group-hover:opacity-40 transition-opacity">
+                  <FolderIcon size={80} />
+              </div>
+
               <div className="relative z-10 flex justify-between items-end">
                 <div>
-                  <p className="text-gray-400 text-xs md:text-sm font-bold uppercase tracking-wide mb-1 flex items-center gap-2">
-                    <FolderIcon size={14} />
-                    {currentFolderName} (点击管理)
+                  <p className="text-gray-400 text-xs md:text-sm font-bold uppercase tracking-wide mb-2 flex items-center gap-2">
+                    <FolderIcon size={14} className="text-moe-primary"/>
+                    {currentFolderName}
                   </p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-5xl md:text-7xl font-bold text-moe-text">{dueCount}</span>
-                    <span className="text-gray-400 md:text-lg">/ {totalCards} 张</span>
+                    <span className="text-gray-400 md:text-lg font-medium">/ {totalCards} 张</span>
+                  </div>
+                  <div className="mt-2 text-xs text-moe-primary font-bold bg-moe-50 inline-block px-2 py-1 rounded-lg">
+                      点击管理卡片
                   </div>
                 </div>
                 {dueCount === 0 && (
-                  <div className="text-4xl md:text-6xl">🎉</div>
+                  <div className="text-4xl md:text-6xl animate-bounce">🎉</div>
                 )}
               </div>
             </div>
@@ -377,40 +401,42 @@ const HomeScreen: React.FC<{
 
           {/* Right Column (Tablet): Action Grid */}
           <div className="w-full md:w-7/12 mt-6 md:mt-0 flex flex-col h-full">
-             {/* Use flex-1 on grid to expand buttons vertically on tablet */}
              <div className="grid grid-cols-2 gap-4 h-full md:flex-1">
                 <button 
                   onClick={() => setShowCreateMenu(true)}
-                  className="aspect-square md:aspect-auto md:h-auto bg-[#ffe4e1] rounded-3xl p-4 flex flex-col items-center justify-center gap-3 text-moe-text hover:shadow-md transition-all active:scale-95"
+                  className="aspect-square md:aspect-auto md:h-auto bg-[#ffe4e1] rounded-4xl p-4 flex flex-col items-center justify-center gap-3 text-moe-text hover:shadow-lg transition-all active:scale-95 group relative overflow-hidden"
                 >
-                  <div className="w-12 h-12 bg-white/60 rounded-2xl flex items-center justify-center">
-                    <Plus size={24} />
+                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                  <div className="w-14 h-14 bg-white/60 rounded-2xl flex items-center justify-center shadow-sm relative z-10 group-hover:scale-110 transition-transform">
+                    <Plus size={28} className="text-[#ff9a9e]"/>
                   </div>
-                  <span className="font-bold md:text-lg">新建闪卡</span>
+                  <span className="font-bold md:text-lg relative z-10">新建闪卡</span>
                 </button>
 
                 <button 
                   onClick={() => onNavigate(ViewState.IMPORT)}
-                  className="aspect-square md:aspect-auto md:h-auto bg-[#e2f0cb] rounded-3xl p-4 flex flex-col items-center justify-center gap-3 text-moe-text hover:shadow-md transition-all active:scale-95"
+                  className="aspect-square md:aspect-auto md:h-auto bg-[#e2f0cb] rounded-4xl p-4 flex flex-col items-center justify-center gap-3 text-moe-text hover:shadow-lg transition-all active:scale-95 group relative overflow-hidden"
                 >
-                  <div className="w-12 h-12 bg-white/60 rounded-2xl flex items-center justify-center">
-                    <Sparkles size={24} />
+                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                  <div className="w-14 h-14 bg-white/60 rounded-2xl flex items-center justify-center shadow-sm relative z-10 group-hover:scale-110 transition-transform">
+                    <Sparkles size={28} className="text-[#88d8b0]"/>
                   </div>
-                  <span className="font-bold md:text-lg">AI 导入</span>
+                  <span className="font-bold md:text-lg relative z-10">AI 导入</span>
                 </button>
 
                 <button 
                   onClick={() => onNavigate(ViewState.REVIEW)}
-                  className="col-span-2 bg-[#c7ceea] rounded-3xl p-6 flex items-center justify-between text-moe-text hover:shadow-md transition-all active:scale-95 md:h-auto md:flex-1"
+                  className="col-span-2 bg-[#c7ceea] rounded-4xl p-6 flex items-center justify-between text-moe-text hover:shadow-lg transition-all active:scale-95 md:h-auto md:flex-1 group relative overflow-hidden"
                 >
-                  <div className="flex flex-col text-left justify-center h-full">
-                    <span className="font-bold text-lg md:text-2xl">复习模式</span>
-                    <span className="text-sm opacity-70 md:text-base md:mt-1">
-                        {dueCount > 0 ? `有 ${dueCount} 张卡片需要复习` : "暂时没有需要复习的卡片"}
+                   <div className="absolute inset-0 bg-white/20 translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
+                  <div className="flex flex-col text-left justify-center h-full relative z-10">
+                    <span className="font-bold text-xl md:text-2xl mb-1">开始复习</span>
+                    <span className="text-sm opacity-70 md:text-base">
+                        {dueCount > 0 ? `还有 ${dueCount} 个单词等着你哦` : "复习完成！要再来一组吗？"}
                     </span>
                   </div>
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-white/60 rounded-2xl flex items-center justify-center">
-                    <Play size={24} className="md:w-8 md:h-8" fill="currentColor" />
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-white/60 rounded-full flex items-center justify-center shadow-sm relative z-10 group-hover:rotate-12 transition-transform">
+                    <Play size={32} className="md:w-10 md:h-10 text-[#96a5d9] ml-1" fill="currentColor" />
                   </div>
                 </button>
             </div>
@@ -423,39 +449,39 @@ const HomeScreen: React.FC<{
       {showCreateMenu && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
           <div className="bg-white p-6 rounded-4xl shadow-2xl w-3/4 max-w-sm border border-moe-100">
-            <h3 className="text-xl font-bold text-center mb-6 text-moe-text">选择卡片类型</h3>
+            <h3 className="text-xl font-bold text-center mb-6 text-moe-text">你想怎么制作卡片？</h3>
             <div className="space-y-4">
               <button 
                 onClick={() => { setShowCreateMenu(false); onNavigate(ViewState.CREATE); }} 
-                className="w-full bg-moe-50 hover:bg-moe-100 p-4 rounded-2xl flex items-center gap-4 transition-colors"
+                className="w-full bg-moe-50 hover:bg-moe-100 p-4 rounded-3xl flex items-center gap-4 transition-colors group"
               >
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-moe-primary">
-                  <Type size={20} />
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-moe-primary shadow-sm group-hover:scale-110 transition-transform">
+                  <Type size={24} />
                 </div>
                 <div className="text-left">
-                  <div className="font-bold text-moe-text">文本卡片</div>
-                  <div className="text-xs text-gray-400">输入文字和定义</div>
+                  <div className="font-bold text-moe-text text-lg">文本卡片</div>
+                  <div className="text-xs text-gray-400">经典的文字和定义</div>
                 </div>
               </button>
 
               <button 
                 onClick={() => { setShowCreateMenu(false); onNavigate(ViewState.CREATE + '_DRAW'); }}
-                className="w-full bg-moe-50 hover:bg-moe-100 p-4 rounded-2xl flex items-center gap-4 transition-colors"
+                className="w-full bg-moe-50 hover:bg-moe-100 p-4 rounded-3xl flex items-center gap-4 transition-colors group"
               >
-                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-moe-primary">
-                  <PenTool size={20} />
+                 <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-moe-primary shadow-sm group-hover:scale-110 transition-transform">
+                  <PenTool size={24} />
                 </div>
                 <div className="text-left">
-                  <div className="font-bold text-moe-text">手写卡片</div>
+                  <div className="font-bold text-moe-text text-lg">手写卡片</div>
                   <div className="text-xs text-gray-400">自由涂鸦和绘图</div>
                 </div>
               </button>
 
                <button 
                 onClick={() => setShowCreateMenu(false)}
-                className="w-full mt-2 p-2 text-gray-400 text-sm hover:text-moe-text"
+                className="w-full mt-4 py-3 rounded-2xl text-gray-400 text-sm font-bold hover:bg-gray-50"
               >
-                取消
+                还是算了吧
               </button>
             </div>
           </div>
@@ -475,8 +501,8 @@ const HomeScreen: React.FC<{
               className="w-full bg-moe-50 rounded-xl px-4 py-3 mb-4 outline-none focus:ring-2 focus:ring-moe-primary"
             />
             <div className="flex gap-2">
-              <button onClick={() => setIsCreatingFolder(false)} className="flex-1 py-3 text-gray-400 font-bold">取消</button>
-              <button onClick={handleCreateFolder} className="flex-1 py-3 bg-moe-text text-white rounded-xl font-bold">创建</button>
+              <button onClick={() => setIsCreatingFolder(false)} className="flex-1 py-3 text-gray-400 font-bold hover:bg-gray-50 rounded-xl">取消</button>
+              <button onClick={handleCreateFolder} className="flex-1 py-3 bg-moe-text text-white rounded-xl font-bold shadow-md">创建</button>
             </div>
           </div>
         </div>
@@ -681,7 +707,7 @@ const FolderDetailScreen: React.FC<{
                           <div className="text-left"><div className="font-bold text-moe-text">PDF 打印</div><div className="text-xs text-gray-400">精美排版，适合阅读</div></div>
                         </button>
                       </div>
-                      <button onClick={() => setShowExport(false)} className="w-full mt-6 py-3 text-gray-400 font-bold">取消</button>
+                      <button onClick={() => setShowExport(false)} className="w-full mt-6 py-3 text-gray-400 font-bold hover:bg-gray-50 rounded-xl">取消</button>
                   </div>
               </div>
             )}
@@ -707,7 +733,7 @@ const FolderDetailScreen: React.FC<{
                         </div>
                         <button 
                             onClick={() => setMovingCardId(null)}
-                            className="w-full py-3 text-gray-400 font-bold"
+                            className="w-full py-3 text-gray-400 font-bold hover:bg-gray-50 rounded-xl"
                         >
                             取消
                         </button>
@@ -766,7 +792,7 @@ const CreateCardScreen: React.FC<{
             <button
               key={f.id}
               onClick={() => setSelectedFolderId(f.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${selectedFolderId === f.id ? 'bg-moe-100 border-moe-primary text-moe-text' : 'border-gray-200 text-gray-400'}`}
+              className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors ${selectedFolderId === f.id ? 'bg-moe-100 border-moe-primary text-moe-text' : 'border-gray-200 text-gray-400 hover:border-moe-200'}`}
             >
               {f.name}
             </button>
@@ -779,13 +805,13 @@ const CreateCardScreen: React.FC<{
           <div className="flex justify-between items-center">
             <span className="text-sm font-bold text-gray-400 uppercase tracking-wide">正面 (问题)</span>
             <div className="bg-moe-50 p-1 rounded-lg flex gap-1">
-              <button onClick={() => setFrontType('text')} className={`p-1.5 rounded-md ${frontType === 'text' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><Type size={16} /></button>
-              <button onClick={() => setFrontType('image')} className={`p-1.5 rounded-md ${frontType === 'image' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><ImageIcon size={16} /></button>
+              <button onClick={() => setFrontType('text')} className={`p-1.5 rounded-md transition-all ${frontType === 'text' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><Type size={16} /></button>
+              <button onClick={() => setFrontType('image')} className={`p-1.5 rounded-md transition-all ${frontType === 'image' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><ImageIcon size={16} /></button>
             </div>
           </div>
           <div className="min-h-[150px]">
             {frontType === 'text' ? (
-              <textarea value={frontContent} onChange={(e) => setFrontContent(e.target.value)} placeholder="请输入问题..." className="w-full h-40 bg-moe-50 rounded-2xl p-4 border-none outline-none focus:ring-2 focus:ring-moe-200 resize-none text-lg text-center flex flex-col justify-center" />
+              <textarea value={frontContent} onChange={(e) => setFrontContent(e.target.value)} placeholder="请输入问题..." className="w-full h-40 bg-moe-50 rounded-3xl p-6 border-none outline-none focus:ring-2 focus:ring-moe-200 resize-none text-lg text-center flex flex-col justify-center placeholder-gray-300" />
             ) : (
               <DrawingCanvas key={`front-${canvasVersion}`} onSave={setFrontContent} />
             )}
@@ -795,13 +821,13 @@ const CreateCardScreen: React.FC<{
           <div className="flex justify-between items-center">
             <span className="text-sm font-bold text-gray-400 uppercase tracking-wide">背面 (答案)</span>
             <div className="bg-moe-50 p-1 rounded-lg flex gap-1">
-              <button onClick={() => setBackType('text')} className={`p-1.5 rounded-md ${backType === 'text' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><Type size={16} /></button>
-              <button onClick={() => setBackType('image')} className={`p-1.5 rounded-md ${backType === 'image' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><ImageIcon size={16} /></button>
+              <button onClick={() => setBackType('text')} className={`p-1.5 rounded-md transition-all ${backType === 'text' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><Type size={16} /></button>
+              <button onClick={() => setBackType('image')} className={`p-1.5 rounded-md transition-all ${backType === 'image' ? 'bg-white shadow-sm text-moe-primary' : 'text-gray-400'}`}><ImageIcon size={16} /></button>
             </div>
           </div>
           <div className="min-h-[150px]">
              {backType === 'text' ? (
-              <textarea value={backContent} onChange={(e) => setBackContent(e.target.value)} placeholder="请输入答案..." className="w-full h-40 bg-moe-50 rounded-2xl p-4 border-none outline-none focus:ring-2 focus:ring-moe-200 resize-none text-lg text-center" />
+              <textarea value={backContent} onChange={(e) => setBackContent(e.target.value)} placeholder="请输入答案..." className="w-full h-40 bg-moe-50 rounded-3xl p-6 border-none outline-none focus:ring-2 focus:ring-moe-200 resize-none text-lg text-center placeholder-gray-300" />
             ) : (
               <DrawingCanvas key={`back-${canvasVersion}`} onSave={setBackContent} />
             )}
@@ -813,7 +839,7 @@ const CreateCardScreen: React.FC<{
         <button 
           onClick={handleSave}
           disabled={!frontContent || !backContent}
-          className="w-full bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          className="w-full bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-95"
         >
           <Save size={20} />
           保存 & 下一张
@@ -885,17 +911,17 @@ const ImportScreen: React.FC<{
       <div className="flex-1 overflow-y-auto p-6">
         {!previewCards.length ? (
           <>
-            <p className="text-gray-500 mb-4 text-sm leading-relaxed">
-              输入你想学习的单词列表（用逗号或换行分隔）。
+            <p className="text-gray-500 mb-4 text-sm leading-relaxed bg-moe-50 p-4 rounded-2xl">
+              🐱 <span className="font-bold text-moe-primary">小贴士：</span> 输入你想学习的单词列表（用逗号或换行分隔）。
               AI 助手会自动翻译并生成可爱的例句！🌸
             </p>
-            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="例如：Apple, Sky, Happiness" className="w-full h-64 bg-moe-50 rounded-3xl p-6 border-none outline-none focus:ring-2 focus:ring-moe-200 resize-none text-lg" />
+            <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="例如：Apple, Sky, Happiness" className="w-full h-64 bg-white border border-moe-200 rounded-3xl p-6 outline-none focus:ring-2 focus:ring-moe-200 resize-none text-lg shadow-sm" />
           </>
         ) : (
           <div className="space-y-4">
             <h3 className="font-bold text-moe-text">预览 ({previewCards.length})</h3>
             {previewCards.map((card, idx) => (
-              <div key={idx} className="bg-moe-50 p-4 rounded-2xl">
+              <div key={idx} className="bg-moe-50 p-4 rounded-2xl border border-white shadow-sm">
                 <div className="flex justify-between">
                     <div className="font-bold text-moe-primary text-lg">{card.front}</div>
                     <div className="text-gray-400 font-mono text-sm bg-white px-2 py-1 rounded">{card.phonetic}</div>
@@ -911,13 +937,13 @@ const ImportScreen: React.FC<{
 
       <div className="p-6 border-t border-gray-100">
         {!previewCards.length ? (
-          <button onClick={handleAIProcess} disabled={isLoading || !inputText} className="w-full bg-moe-primary text-white font-bold py-4 rounded-3xl hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+          <button onClick={handleAIProcess} disabled={isLoading || !inputText} className="w-full bg-moe-primary text-white font-bold py-4 rounded-3xl hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-95">
             {isLoading ? <span className="animate-pulse">思考中...</span> : <><Sparkles size={20} /> 施展魔法</>}
           </button>
         ) : (
            <div className="flex gap-4">
-             <button onClick={() => setPreviewCards([])} className="flex-1 bg-gray-100 text-gray-500 font-bold py-4 rounded-3xl">重置</button>
-             <button onClick={confirmImport} className="flex-2 w-full bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg transition-all">全部添加</button>
+             <button onClick={() => setPreviewCards([])} className="flex-1 bg-gray-100 text-gray-500 font-bold py-4 rounded-3xl hover:bg-gray-200">重置</button>
+             <button onClick={confirmImport} className="flex-2 w-full bg-moe-text text-white font-bold py-4 rounded-3xl hover:shadow-lg transition-all active:scale-95">全部添加</button>
            </div>
         )}
       </div>
@@ -964,15 +990,15 @@ const ReviewScreen: React.FC<{
 
   if (isFinished) {
       return (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center animate-in fade-in zoom-in">
-          <div className="w-32 h-32 bg-moe-50 rounded-full flex items-center justify-center text-6xl mb-6 shadow-sm">
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center animate-in fade-in zoom-in bg-moe-50">
+          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center text-6xl mb-6 shadow-sm border-4 border-moe-200">
              🎉
           </div>
           <h2 className="text-2xl font-bold text-moe-text mb-2">本次复习完成!</h2>
           <p className="text-gray-400 mb-8">你真棒！休息一下吧。</p>
           <button 
             onClick={onBack} 
-            className="w-full max-w-xs py-4 bg-moe-text text-white rounded-3xl font-bold shadow-lg flex items-center justify-center gap-2"
+            className="w-full max-w-xs py-4 bg-moe-text text-white rounded-3xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
           >
               <LogOut size={20} />
               返回主页
@@ -1017,56 +1043,60 @@ const ReviewScreen: React.FC<{
 
   return (
     <div className="flex flex-col h-full bg-moe-50 relative overflow-hidden">
-       <div className="p-4 flex items-center justify-between z-10">
-        <button onClick={onBack} className="p-2 rounded-full bg-white/50 hover:bg-white">
+       {/* Background decorative elements */}
+       <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-white to-transparent opacity-50 z-0"></div>
+
+       <div className="p-4 flex items-center justify-between z-10 relative">
+        <button onClick={onBack} className="p-2 rounded-full bg-white/50 hover:bg-white backdrop-blur-sm">
           <ArrowLeft size={24} className="text-moe-text" />
         </button>
-        <div className="flex gap-4 items-center">
-             <span className="font-bold text-moe-text/50">剩余 {reviewQueue.length} 张</span>
-             <button 
-                onClick={() => handleRate('delete')}
-                className="p-2 rounded-full bg-white text-gray-400 hover:text-red-400 shadow-sm"
-             >
-                 <Trash2 size={20} />
-             </button>
+        <div className="flex items-center gap-2 bg-white/60 backdrop-blur-md px-4 py-2 rounded-full shadow-sm">
+             <span className="text-xl">🐱</span>
+             <span className="text-xs text-moe-text font-bold">加油！还有 {reviewQueue.length} 张</span>
         </div>
+        <button 
+           onClick={() => handleRate('delete')}
+           className="p-2 rounded-full bg-white text-gray-400 hover:text-red-400 shadow-sm"
+        >
+            <Trash2 size={20} />
+        </button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-6 perspective-1000">
+      <div className="flex-1 flex items-center justify-center p-6 perspective-1000 z-10">
         <div 
           onClick={() => !swipeDirection && setIsFlipped(!isFlipped)}
           className={`w-full max-w-sm aspect-[3/4] relative cursor-pointer group card-transition transform-style-3d ${isFlipped ? 'rotate-y-180' : ''} ${swipeDirection === 'left' ? 'swipe-left' : swipeDirection === 'right' ? 'swipe-right' : ''}`}
         >
           {/* Front */}
-          <div className="absolute inset-0 bg-white rounded-4xl shadow-xl shadow-moe-200/50 flex flex-col items-center justify-center p-8 backface-hidden border-2 border-white">
-            <span className="absolute top-8 left-8 text-xs font-bold text-moe-200 uppercase tracking-widest">Question</span>
+          <div className="absolute inset-0 bg-white rounded-4xl shadow-2xl shadow-moe-200/40 flex flex-col items-center justify-center p-8 backface-hidden border-4 border-white">
+            <span className="absolute top-8 left-8 text-xs font-bold text-moe-200 uppercase tracking-widest bg-moe-50 px-2 py-1 rounded">Question</span>
             {currentCard.frontType === 'text' ? (
                 <>
                     {/* Increased Font Size here */}
-                    <div className="text-4xl md:text-6xl text-center font-bold text-moe-text mb-4 leading-tight">{currentCard.frontContent}</div>
+                    <div className="text-4xl md:text-6xl text-center font-bold text-moe-text mb-4 leading-tight break-words">{currentCard.frontContent}</div>
                     {currentCard.phonetic && (
-                        <div className="text-lg text-gray-400 font-mono mb-4">[{currentCard.phonetic}]</div>
+                        <div className="text-lg text-gray-400 font-mono mb-4 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">[{currentCard.phonetic}]</div>
                     )}
                     <button 
                         onClick={(e) => { e.stopPropagation(); speakText(currentCard.frontContent); }}
-                        className="p-3 bg-moe-50 text-moe-primary rounded-full hover:bg-moe-100 transition-colors"
+                        className="p-3 bg-moe-50 text-moe-primary rounded-full hover:bg-moe-100 transition-colors shadow-sm"
                     >
                         <Volume2 size={24} />
                     </button>
                 </>
             ) : (
-                <img src={currentCard.frontContent} alt="Front" className="max-w-full max-h-full object-contain pointer-events-none select-none" />
+                <img src={currentCard.frontContent} alt="Front" className="max-w-full max-h-full object-contain pointer-events-none select-none rounded-2xl" />
             )}
-            <div className="absolute bottom-6 text-gray-300 text-sm">点击翻转</div>
+            <div className="absolute bottom-6 text-gray-300 text-sm animate-pulse">点击翻转</div>
           </div>
 
           {/* Back */}
           <div 
-            className="absolute inset-0 bg-white rounded-4xl shadow-xl shadow-moe-200/50 flex flex-col items-center justify-center p-8 backface-hidden rotate-y-180 border-[6px] border-moe-100"
+            className="absolute inset-0 bg-white rounded-4xl shadow-2xl shadow-moe-200/40 flex flex-col items-center justify-center p-8 backface-hidden rotate-y-180 border-[6px] border-moe-100"
           >
-             <span className="absolute top-8 left-8 text-xs font-bold text-moe-300 uppercase tracking-widest">Answer</span>
+             <span className="absolute top-8 left-8 text-xs font-bold text-moe-300 uppercase tracking-widest bg-moe-50 px-2 py-1 rounded">Answer</span>
              {currentCard.backType === 'text' ? (
-                 <div className="w-full h-full flex items-center justify-center overflow-y-auto">
+                 <div className="w-full h-full flex items-center justify-center overflow-y-auto no-scrollbar">
                      {/* Safe render of HTML for the highlighted examples */}
                      <div 
                         className="text-xl text-center font-medium text-moe-text whitespace-pre-wrap leading-relaxed"
@@ -1076,7 +1106,7 @@ const ReviewScreen: React.FC<{
                      />
                  </div>
             ) : (
-                <img src={currentCard.backContent} alt="Back" className="max-w-full max-h-full object-contain pointer-events-none select-none" />
+                <img src={currentCard.backContent} alt="Back" className="max-w-full max-h-full object-contain pointer-events-none select-none rounded-2xl" />
             )}
           </div>
         </div>
@@ -1084,20 +1114,20 @@ const ReviewScreen: React.FC<{
 
       {/* Grading Buttons */}
       <div className={`p-6 pb-10 transition-opacity duration-300 ${isFlipped ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="grid grid-cols-4 gap-3">
-             <button onClick={(e) => { e.stopPropagation(); handleRate('again'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-red-50 border border-transparent hover:border-red-200">
+        <div className="grid grid-cols-4 gap-3 max-w-sm mx-auto">
+             <button onClick={(e) => { e.stopPropagation(); handleRate('again'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-red-50 border-b-4 border-red-100 active:border-b-0 active:translate-y-1 transition-all">
                  <span className="text-xs font-bold text-red-400">不认识</span>
                  <span className="text-[10px] text-gray-400">{getTimeLabel('again')}</span>
              </button>
-             <button onClick={(e) => { e.stopPropagation(); handleRate('hard'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-orange-50 border border-transparent hover:border-orange-200">
+             <button onClick={(e) => { e.stopPropagation(); handleRate('hard'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-orange-50 border-b-4 border-orange-100 active:border-b-0 active:translate-y-1 transition-all">
                  <span className="text-xs font-bold text-orange-400">困难</span>
                  <span className="text-[10px] text-gray-400">{getTimeLabel('hard')}</span>
              </button>
-             <button onClick={(e) => { e.stopPropagation(); handleRate('good'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-blue-50 border border-transparent hover:border-blue-200">
+             <button onClick={(e) => { e.stopPropagation(); handleRate('good'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-blue-50 border-b-4 border-blue-100 active:border-b-0 active:translate-y-1 transition-all">
                  <span className="text-xs font-bold text-blue-400">良好</span>
                  <span className="text-[10px] text-gray-400">{getTimeLabel('good')}</span>
              </button>
-             <button onClick={(e) => { e.stopPropagation(); handleRate('easy'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-green-50 border border-transparent hover:border-green-200">
+             <button onClick={(e) => { e.stopPropagation(); handleRate('easy'); }} className="flex flex-col items-center gap-1 bg-white p-3 rounded-2xl shadow-sm hover:bg-green-50 border-b-4 border-green-100 active:border-b-0 active:translate-y-1 transition-all">
                  <span className="text-xs font-bold text-green-400">简单</span>
                  <span className="text-[10px] text-gray-400">{getTimeLabel('easy')}</span>
              </button>
@@ -1276,8 +1306,6 @@ const App: React.FC = () => {
       setCards(prev => prev.map(c => c.id === id ? { ...c, folderId } : c));
   };
 
-  // Removed exportToAnki from here, now handled in FolderDetailScreen
-
   if (!settings || view === ViewState.WELCOME) {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />;
   }
@@ -1303,7 +1331,6 @@ const App: React.FC = () => {
           onSwitchFolder={setCurrentFolderId}
           onCreateFolder={handleCreateFolder}
           onNavigate={setView} 
-          onExport={() => {}} // No-op, button removed from home
           onOpenSettings={() => setShowSettings(true)}
         />
       )}
