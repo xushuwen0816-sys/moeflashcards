@@ -25,7 +25,10 @@ import {
   Volume2,
   User,
   Key,
-  X
+  X,
+  FileText,
+  FileSpreadsheet,
+  Printer
 } from 'lucide-react';
 import { Card, Settings, ViewState, Folder } from './types';
 import { generateFlashcardsFromList } from './services/geminiService';
@@ -83,6 +86,13 @@ const cleanHTML = (html: string) => {
     decoded = decoded.replace(/<strong>/gi, '<b class="text-moe-primary">');
     
     return decoded;
+};
+
+// Helper to strip HTML for export
+const stripHTML = (html: string) => {
+  const tmp = document.createElement("DIV");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
 };
 
 // --- Sub-components for Screens ---
@@ -270,9 +280,8 @@ const HomeScreen: React.FC<{
   onSwitchFolder: (id: string) => void,
   onCreateFolder: (name: string) => void,
   onNavigate: (view: ViewState) => void,
-  onExport: () => void,
   onOpenSettings: () => void
-}> = ({ user, totalCards, dueCount, folders, currentFolderId, onSwitchFolder, onCreateFolder, onNavigate, onExport, onOpenSettings }) => {
+}> = ({ user, totalCards, dueCount, folders, currentFolderId, onSwitchFolder, onCreateFolder, onNavigate, onOpenSettings }) => {
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -367,7 +376,7 @@ const HomeScreen: React.FC<{
           </div>
 
           {/* Right Column (Tablet): Action Grid */}
-          <div className="w-full md:w-7/12 mt-6 md:mt-0 flex flex-col">
+          <div className="w-full md:w-7/12 mt-6 md:mt-0 flex flex-col h-full">
              {/* Use flex-1 on grid to expand buttons vertically on tablet */}
              <div className="grid grid-cols-2 gap-4 h-full md:flex-1">
                 <button 
@@ -392,7 +401,7 @@ const HomeScreen: React.FC<{
 
                 <button 
                   onClick={() => onNavigate(ViewState.REVIEW)}
-                  className="col-span-2 bg-[#c7ceea] rounded-3xl p-6 flex items-center justify-between text-moe-text hover:shadow-md transition-all active:scale-95 md:h-auto md:min-h-[140px]"
+                  className="col-span-2 bg-[#c7ceea] rounded-3xl p-6 flex items-center justify-between text-moe-text hover:shadow-md transition-all active:scale-95 md:h-auto md:flex-1"
                 >
                   <div className="flex flex-col text-left justify-center h-full">
                     <span className="font-bold text-lg md:text-2xl">复习模式</span>
@@ -404,21 +413,13 @@ const HomeScreen: React.FC<{
                     <Play size={24} className="md:w-8 md:h-8" fill="currentColor" />
                   </div>
                 </button>
-                
-                <button 
-                  onClick={onExport}
-                  className="col-span-2 bg-white border-2 border-dashed border-moe-200 rounded-3xl p-4 flex items-center justify-center gap-2 text-gray-400 hover:text-moe-primary hover:border-moe-primary transition-colors md:h-16"
-                >
-                  <Download size={18} />
-                  <span className="font-bold text-sm">导出 Anki 格式 (TXT)</span>
-                </button>
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* Modal for Create Selection - Use Fixed positioning to cover full screen */}
+      {/* Modal for Create Selection */}
       {showCreateMenu && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
           <div className="bg-white p-6 rounded-4xl shadow-2xl w-3/4 max-w-sm border border-moe-100">
@@ -461,7 +462,7 @@ const HomeScreen: React.FC<{
         </div>
       )}
 
-      {/* Modal for New Folder - Use Fixed positioning */}
+      {/* Modal for New Folder */}
       {isCreatingFolder && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
           <div className="bg-white p-6 rounded-3xl shadow-2xl w-3/4 max-w-sm">
@@ -493,18 +494,133 @@ const FolderDetailScreen: React.FC<{
     onMoveCard: (id: string, folderId: string) => void
 }> = ({ folder, allFolders, cards, onBack, onDeleteCard, onMoveCard }) => {
     const [movingCardId, setMovingCardId] = useState<string | null>(null);
+    const [showExport, setShowExport] = useState(false);
+
+    // Parse logic for structured export
+    const parseCardContent = (card: Card) => {
+      let word = card.frontType === 'text' ? card.frontContent : '[Image]';
+      let phonetic = card.phonetic || '';
+      let meaning = '';
+      let example = '';
+      let translation = '';
+
+      if (card.backType === 'text') {
+        const content = card.backContent;
+        // Attempt to extract using known delimiters from import
+        // Format: Back\n\n例句: Example\n(Translation)
+        const parts = content.split('\n\n例句: ');
+        if (parts.length > 1) {
+           meaning = stripHTML(parts[0]);
+           const examplePart = parts[1];
+           const exParts = examplePart.split('\n(');
+           if (exParts.length > 1) {
+             example = stripHTML(exParts[0]);
+             translation = exParts[1].replace(')', '');
+           } else {
+             example = stripHTML(examplePart);
+           }
+        } else {
+           meaning = stripHTML(content);
+        }
+      } else {
+        meaning = '[Image]';
+      }
+
+      return { word, phonetic, meaning, example, translation };
+    };
+
+    const handleExport = (format: 'txt' | 'csv' | 'pdf') => {
+      if (cards.length === 0) return;
+      const data = cards.map(parseCardContent);
+      
+      if (format === 'csv') {
+        const header = "\uFEFFWord,Phonetic,Meaning,Example,Example Translation\n";
+        const rows = data.map(d => 
+          `"${d.word.replace(/"/g, '""')}","${d.phonetic.replace(/"/g, '""')}","${d.meaning.replace(/"/g, '""')}","${d.example.replace(/"/g, '""')}","${d.translation.replace(/"/g, '""')}"`
+        ).join('\n');
+        const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `moe_cards_${folder.name}.csv`;
+        link.click();
+      } else if (format === 'txt') {
+        // Tab separated for generic use or Anki
+        const rows = data.map(d => `${d.word}\t${d.phonetic}\t${d.meaning}\t${d.example}\t${d.translation}`).join('\n');
+        const blob = new Blob([rows], { type: 'text/plain;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `moe_cards_${folder.name}.txt`;
+        link.click();
+      } else if (format === 'pdf') {
+        // Use window.print() approach
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          const rowsHtml = data.map(d => `
+            <div class="card">
+              <div class="word-row">
+                <span class="word">${d.word}</span>
+                <span class="phonetic">${d.phonetic}</span>
+              </div>
+              <div class="meaning">${d.meaning}</div>
+              <div class="example">
+                <div class="en">${d.example}</div>
+                <div class="cn">${d.translation}</div>
+              </div>
+            </div>
+          `).join('');
+
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Export - ${folder.name}</title>
+                <style>
+                  @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Noto+Sans+SC:wght@400;700&display=swap');
+                  body { font-family: 'Quicksand', 'Noto Sans SC', sans-serif; padding: 20px; color: #4a4a4a; }
+                  h1 { text-align: center; color: #ff9a9e; margin-bottom: 30px; }
+                  .card { border: 1px solid #ffe4e1; padding: 15px; border-radius: 12px; margin-bottom: 15px; page-break-inside: avoid; background: #fffafb; }
+                  .word-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+                  .word { font-size: 1.5em; font-weight: bold; color: #ff9a9e; }
+                  .phonetic { font-family: monospace; color: #888; font-size: 0.9em; }
+                  .meaning { font-weight: bold; margin-bottom: 8px; }
+                  .example { font-size: 0.9em; color: #666; background: #fff; padding: 8px; border-radius: 8px; }
+                  .example .cn { color: #999; font-size: 0.85em; margin-top: 2px; }
+                  @media print { .no-print { display: none; } body { background: white; } }
+                </style>
+              </head>
+              <body>
+                <h1>${folder.name}</h1>
+                ${rowsHtml}
+                <script>window.print();</script>
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+        }
+      }
+      setShowExport(false);
+    };
 
     return (
         <div className="flex flex-col h-full bg-white relative">
             {/* Header */}
-            <div className="p-4 flex items-center gap-4 border-b border-gray-100 bg-white z-10">
-                <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100">
-                    <ArrowLeft size={24} className="text-moe-text" />
-                </button>
-                <div>
-                    <h2 className="text-xl font-bold text-moe-text">{folder.name}</h2>
-                    <p className="text-xs text-gray-400">{cards.length} 张卡片</p>
+            <div className="p-4 flex items-center justify-between border-b border-gray-100 bg-white z-10">
+                <div className="flex items-center gap-4">
+                  <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100">
+                      <ArrowLeft size={24} className="text-moe-text" />
+                  </button>
+                  <div>
+                      <h2 className="text-xl font-bold text-moe-text">{folder.name}</h2>
+                      <p className="text-xs text-gray-400">{cards.length} 张卡片</p>
+                  </div>
                 </div>
+                <button 
+                  onClick={() => setShowExport(true)}
+                  className="px-4 py-2 bg-moe-50 text-moe-primary rounded-xl font-bold text-sm hover:bg-moe-100 flex items-center gap-2"
+                >
+                  <Download size={16} /> 导出
+                </button>
             </div>
 
             {/* List */}
@@ -522,7 +638,7 @@ const FolderDetailScreen: React.FC<{
                                     {card.frontType === 'image' ? '[图片]' : card.frontContent}
                                 </div>
                                 <div className="text-sm text-gray-500 truncate mt-1">
-                                    {card.backType === 'image' ? '[图片]' : card.backContent.replace(/<[^>]*>?/gm, '')}
+                                    {card.backType === 'image' ? '[图片]' : stripHTML(card.backContent)}
                                 </div>
                             </div>
                             <div className="flex gap-2">
@@ -545,6 +661,30 @@ const FolderDetailScreen: React.FC<{
                     ))
                 )}
             </div>
+
+            {/* Export Modal */}
+            {showExport && (
+              <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
+                  <div className="bg-white p-6 rounded-3xl shadow-2xl w-3/4 max-w-sm">
+                      <h3 className="text-lg font-bold mb-6 text-moe-text text-center">选择导出格式</h3>
+                      <div className="space-y-3">
+                        <button onClick={() => handleExport('txt')} className="w-full p-4 rounded-2xl bg-moe-50 hover:bg-moe-100 flex items-center gap-3 transition-colors">
+                          <div className="bg-white p-2 rounded-lg text-moe-primary"><FileText size={20}/></div>
+                          <div className="text-left"><div className="font-bold text-moe-text">TXT 文本</div><div className="text-xs text-gray-400">适合 Anki 导入</div></div>
+                        </button>
+                        <button onClick={() => handleExport('csv')} className="w-full p-4 rounded-2xl bg-moe-50 hover:bg-moe-100 flex items-center gap-3 transition-colors">
+                          <div className="bg-white p-2 rounded-lg text-green-500"><FileSpreadsheet size={20}/></div>
+                          <div className="text-left"><div className="font-bold text-moe-text">CSV 表格</div><div className="text-xs text-gray-400">适合 Excel 编辑</div></div>
+                        </button>
+                        <button onClick={() => handleExport('pdf')} className="w-full p-4 rounded-2xl bg-moe-50 hover:bg-moe-100 flex items-center gap-3 transition-colors">
+                          <div className="bg-white p-2 rounded-lg text-red-400"><Printer size={20}/></div>
+                          <div className="text-left"><div className="font-bold text-moe-text">PDF 打印</div><div className="text-xs text-gray-400">精美排版，适合阅读</div></div>
+                        </button>
+                      </div>
+                      <button onClick={() => setShowExport(false)} className="w-full mt-6 py-3 text-gray-400 font-bold">取消</button>
+                  </div>
+              </div>
+            )}
 
             {/* Move Modal */}
             {movingCardId && (
@@ -1121,23 +1261,7 @@ const App: React.FC = () => {
       setCards(prev => prev.map(c => c.id === id ? { ...c, folderId } : c));
   };
 
-  const exportToAnki = () => {
-    const cardsToExport = cards.filter(c => c.folderId === currentFolderId);
-    let fileContent = "# Separator:Tab\n# HTML:true\n# Generated by MoeFlashcards\n";
-    cardsToExport.forEach(c => {
-        let front = c.frontType === 'image' ? `<img src="${c.frontContent}" style="max-width:300px;">` : c.frontContent.replace(/\t/g, "    ").replace(/\n/g, "<br>");
-        let back = c.backType === 'image' ? `<img src="${c.backContent}" style="max-width:300px;">` : c.backContent.replace(/\t/g, "    ").replace(/\n/g, "<br>");
-        fileContent += `${front}\t${back}\n`;
-    });
-    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `moe_anki_${currentFolderId}.txt`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Removed exportToAnki from here, now handled in FolderDetailScreen
 
   if (!settings || view === ViewState.WELCOME) {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />;
@@ -1164,7 +1288,7 @@ const App: React.FC = () => {
           onSwitchFolder={setCurrentFolderId}
           onCreateFolder={handleCreateFolder}
           onNavigate={setView} 
-          onExport={exportToAnki}
+          onExport={() => {}} // No-op, button removed from home
           onOpenSettings={() => setShowSettings(true)}
         />
       )}
