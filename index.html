@@ -9,10 +9,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MoeCards" />
+    
+    <!-- iOS Icon (Important for avoiding some 404 quirks in older iOS versions) -->
+    <link rel="apple-touch-icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f431.png" />
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
-    <!-- Icon removed for debugging -->
     
     <title>MoeFlashcards</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -109,9 +111,10 @@
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
-      // Register SW immediately
+      // Register SW immediately with EXPLICIT scope
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
+        // Adding scope: './' is crucial for iOS to understand where the SW has authority
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
           .then(reg => console.log('SW Registered!', reg))
           .catch(err => console.log('SW Failed:', err));
       }
