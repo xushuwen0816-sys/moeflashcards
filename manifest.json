@@ -1,7 +1,7 @@
 {
   "name": "MoeFlashcards",
   "short_name": "MoeCards",
-  "start_url": ".",
+  "start_url": "./index.html?mode=pwa",
   "scope": ".",
   "display": "standalone",
   "background_color": "#fff0f5",
