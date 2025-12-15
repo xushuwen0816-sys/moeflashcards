@@ -1125,26 +1125,41 @@ const App: React.FC = () => {
     const savedFolders = localStorage.getItem('moe_folders');
     
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
-      setView(ViewState.HOME);
+      try {
+        setSettings(JSON.parse(savedSettings));
+        setView(ViewState.HOME);
+      } catch (e) {
+        console.error("Failed to parse settings", e);
+        localStorage.removeItem('moe_settings');
+      }
     }
     
     if (savedFolders) {
-        setFolders(JSON.parse(savedFolders));
+        try {
+          setFolders(JSON.parse(savedFolders));
+        } catch (e) {
+          console.error("Failed to parse folders", e);
+        }
     }
 
     if (savedCards) {
-      let parsedCards: Card[] = JSON.parse(savedCards);
-      const migratedCards = parsedCards.map(c => ({
-          ...c,
-          folderId: c.folderId || 'default',
-          // Default SRS values for old cards
-          nextReviewTime: c.nextReviewTime || 0,
-          interval: c.interval || 0,
-          repetition: c.repetition || 0,
-          easeFactor: c.easeFactor || 2.5
-      }));
-      setCards(migratedCards);
+      try {
+        let parsedCards: Card[] = JSON.parse(savedCards);
+        if (Array.isArray(parsedCards)) {
+          const migratedCards = parsedCards.map(c => ({
+              ...c,
+              folderId: c.folderId || 'default',
+              // Default SRS values for old cards
+              nextReviewTime: c.nextReviewTime || 0,
+              interval: c.interval || 0,
+              repetition: c.repetition || 0,
+              easeFactor: c.easeFactor || 2.5
+          }));
+          setCards(migratedCards);
+        }
+      } catch (e) {
+        console.error("Failed to parse cards", e);
+      }
     }
   }, []);
 
